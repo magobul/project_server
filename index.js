@@ -11,7 +11,7 @@ const multer = require('multer');
 const allowedOrigins = [
     'http://localhost:5173',          // локальная разработка
     'http://localhost:3000',          // локальный сервер
-    'https://project-delta-one-41.vercel.app'  // <- ВАШ URL ФРОНТЕНДА
+    'https://project-xw85.vercel.app',  // <- ВАШ URL ФРОНТЕНД
 ];
 
 const app = express();

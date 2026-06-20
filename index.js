@@ -31,6 +31,24 @@ app.use(express.json());
 app.use('/models', express.static(path.join(__dirname, 'models')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.get('/', (req, res) => {
+    res.json({
+        message: ' Сервер ООО "Квадрат" работает!',
+        version: '1.0.0',
+        endpoints: {
+            services: '/api/services',
+            gallery: '/api/gallery',
+            pallet_types: '/api/pallet-types',
+            register: '/api/register (POST)',
+            login: '/api/login (POST)',
+            requests: '/api/requests (POST)',
+            admin: '/api/admin/requests'
+        },
+        status: 'online',
+        timestamp: new Date().toISOString()
+    });
+});
+
 // ==================== SOCKET.IO ====================
 io.on('connection', (socket) => {
     console.log('Новый клиент подключен:', socket.id);

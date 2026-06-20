@@ -2098,12 +2098,14 @@ async function calculatePalletLoad(params) {
     }
 }
 
-// ==================== ЭКСПОРТ В EXCEL ====================
+// ==================== ЭКСПОРТ ДАННЫХ В EXCEL ====================
 
 const XLSX = require('xlsx');
 
 app.get('/api/admin/export/excel', (req, res) => {
-    const query = `
+    const { status, start_date, end_date } = req.query;
+    
+    let query = `
         SELECT 
             r.request_number AS 'Номер заявки',
             u.name AS 'Клиент',
@@ -2114,20 +2116,26 @@ app.get('/api/admin/export/excel', (req, res) => {
             r.total_cost AS 'Стоимость, руб',
             r.description AS 'Описание',
             r.created_at AS 'Дата создания',
-            r.actual_start_date AS 'Дата начала',
-            r.actual_end_date AS 'Дата завершения',
-            e.name AS 'Сотрудник'
+            r.planned_start_date AS 'Плановая дата начала',
+            r.planned_end_date AS 'Плановая дата окончания',
+            r.actual_start_date AS 'Фактическая дата начала',
+            r.actual_end_date AS 'Фактическая дата окончания',
+            e.name AS 'Назначенный сотрудник'
         FROM requests r
         LEFT JOIN users u ON r.client_id = u.id
         LEFT JOIN services s ON r.service_id = s.id
         LEFT JOIN employees emp ON r.assigned_employee_id = emp.id
         LEFT JOIN users e ON emp.id = e.id
-        ORDER BY r.created_at DESC
+        WHERE 1=1
     `;
     
-    db.all(query, [], (err, rows) => {
+    const params = [];
+    
+    query += ' ORDER BY r.created_at DESC';
+    
+    db.all(query, params, (err, rows) => {
         if (err) {
-            console.error(' Ошибка экспорта:', err);
+            console.error('Ошибка экспорта данных:', err);
             return res.status(500).json({ error: err.message });
         }
         
@@ -2135,38 +2143,33 @@ app.get('/api/admin/export/excel', (req, res) => {
             return res.status(404).json({ error: 'Нет данных для экспорта' });
         }
         
-        try {
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.json_to_sheet(rows);
-            
-            ws['!cols'] = [
-                { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 25 },
-                { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 30 },
-                { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 25 }
-            ];
-            
-            XLSX.utils.book_append_sheet(wb, ws, 'Заявки');
-            
-            const dateStr = new Date().toISOString().split('T')[0];
-            const fileName = `заявки_${dateStr}.xlsx`;
-            
-            const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-            
-            // Правильная отправка файла
-            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-            res.setHeader('Content-Length', buffer.length);
-            res.send(buffer);
-            
-        } catch (error) {
-            console.error(' Ошибка формирования Excel:', error);
-            res.status(500).json({ error: 'Ошибка формирования файла Excel' });
-        }
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows);
+        
+        const colWidths = [
+            { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 25 },
+            { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 20 }, { wch: 20 },
+            { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 25 }
+        ];
+        ws['!cols'] = colWidths;
+        
+        XLSX.utils.book_append_sheet(wb, ws, 'Заявки');
+        
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = `requests_${dateStr}.xlsx`;
+        
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.send(buffer);
     });
 });
 
 app.get('/api/admin/export/pallets-excel', (req, res) => {
-    const query = `
+    const { status, request_id } = req.query;
+    
+    let query = `
         SELECT 
             p.pallet_code AS 'Код паллеты',
             pt.name AS 'Тип паллеты',
@@ -2174,17 +2177,23 @@ app.get('/api/admin/export/pallets-excel', (req, res) => {
             p.material AS 'Материал',
             p.status AS 'Статус',
             r.request_number AS 'Номер заявки',
-            u.name AS 'Клиент'
+            u.name AS 'Клиент',
+            p.created_at AS 'Дата создания',
+            p.status_updated_at AS 'Дата изменения статуса'
         FROM pallets p
         LEFT JOIN pallet_types pt ON p.pallet_type_id = pt.id
         LEFT JOIN requests r ON p.request_id = r.id
         LEFT JOIN users u ON r.client_id = u.id
-        ORDER BY p.created_at DESC
+        WHERE 1=1
     `;
     
-    db.all(query, [], (err, rows) => {
+    const params = [];
+    
+    query += ' ORDER BY p.created_at DESC';
+    
+    db.all(query, params, (err, rows) => {
         if (err) {
-            console.error(' Ошибка экспорта:', err);
+            console.error('Ошибка экспорта паллет:', err);
             return res.status(500).json({ error: err.message });
         }
         
@@ -2192,33 +2201,28 @@ app.get('/api/admin/export/pallets-excel', (req, res) => {
             return res.status(404).json({ error: 'Нет данных для экспорта' });
         }
         
-        try {
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.json_to_sheet(rows);
-            
-            ws['!cols'] = [
-                { wch: 20 }, { wch: 25 }, { wch: 15 },
-                { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }
-            ];
-            
-            XLSX.utils.book_append_sheet(wb, ws, 'Паллеты');
-            
-            const dateStr = new Date().toISOString().split('T')[0];
-            const fileName = `паллеты_${dateStr}.xlsx`;
-            
-            const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-            
-            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-            res.setHeader('Content-Length', buffer.length);
-            res.send(buffer);
-            
-        } catch (error) {
-            console.error(' Ошибка формирования Excel:', error);
-            res.status(500).json({ error: 'Ошибка формирования файла Excel' });
-        }
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows);
+        
+        const colWidths = [
+            { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 15 },
+            { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }
+        ];
+        ws['!cols'] = colWidths;
+        
+        XLSX.utils.book_append_sheet(wb, ws, 'Паллеты');
+        
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = `pallets_${dateStr}.xlsx`;
+        
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.send(buffer);
     });
 });
+
 // ==================== ЗАПУСК СЕРВЕРА ====================
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {

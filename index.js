@@ -18,8 +18,6 @@ const io = socketIo(server, {
     }
 });
 
-const PORT = 3000;
-
 // Настройка multer для загрузки файлов
 const upload = multer({ 
     storage: multer.memoryStorage(),
@@ -2188,6 +2186,8 @@ app.get('/api/admin/export/pallets-excel', (req, res) => {
 });
 
 // ==================== ЗАПУСК СЕРВЕРА ====================
-server.listen(PORT, () => {
-    console.log(`Сервер запущен`);
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(` Сервер запущен на порту ${PORT}`);
+    console.log(` http://localhost:${PORT}`);
 });

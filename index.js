@@ -8,6 +8,12 @@ const socketIo = require('socket.io');
 const fs = require('fs');
 const multer = require('multer');
 
+const allowedOrigins = [
+    'http://localhost:5173',          // локальная разработка
+    'http://localhost:3000',          // локальный сервер
+    'https://project-delta-one-41.vercel.app'  // <- ВАШ URL ФРОНТЕНДА
+];
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -24,7 +30,21 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 } // 50MB лимит
 });
 
-app.use(cors());
+app.use(cors({
+    origin: function(origin, callback) {
+        // Если origin нет (например, запрос из Postman) — разрешаем
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Не разрешенный источник: ' + origin));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+}));
+
 app.use(express.json());
 
 // Раздача статических файлов

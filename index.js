@@ -2222,7 +2222,20 @@ app.get('/api/admin/export/pallets-excel', (req, res) => {
         res.send(buffer);
     });
 });
+// ==================== KEEP-ALIVE ====================
 
+app.get('/ping', (req, res) => {
+    res.json({ 
+        status: 'alive', 
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+setInterval(() => {
+    const url = `http://localhost:${PORT}/ping`;
+    fetch(url).catch(() => {});
+    console.log('🔄 Self-ping at:', new Date().toISOString());
+}, 840000); // 14 минут
 // ==================== ЗАПУСК СЕРВЕРА ====================
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
